@@ -111,29 +111,103 @@ class SoundFX {
 
 export const sounds = new SoundFX();
 
-// Text to Speech
+// Global reusable audio element for female native voice stream in APK and Web
+let globalTTSAudio = null;
+
+// Preload/unlock audio on first touch
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    sounds.init();
+    if (!globalTTSAudio) {
+      globalTTSAudio = new Audio();
+      globalTTSAudio.setAttribute('playsinline', '');
+      globalTTSAudio.setAttribute('webkit-playsinline', '');
+    }
+    // Remove listener once unlocked
+    window.removeEventListener('touchstart', unlockAudio);
+    window.removeEventListener('click', unlockAudio);
+  };
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('click', unlockAudio, { passive: true });
+
+  // Pre-load Web Speech API voices
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+}
+
+// Fallback using device SpeechSynthesis (female voice prioritization)
+const fallbackSpeechSynthesis = (text, slow = false) => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+  try {
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = slow ? 0.65 : 0.95;
+    utterance.pitch = 1.1; // Female pitch tone
+
+    const voices = window.speechSynthesis.getVoices();
+    // Prioritize natural female English voices
+    const femaleVoice = voices.find(v => 
+      v.lang.startsWith('en') && 
+      (v.name.toLowerCase().includes('female') || 
+       v.name.toLowerCase().includes('samantha') || 
+       v.name.toLowerCase().includes('victoria') || 
+       v.name.toLowerCase().includes('karen') || 
+       v.name.toLowerCase().includes('zira') || 
+       v.name.toLowerCase().includes('jenny') ||
+       v.name.toLowerCase().includes('aria'))
+    ) || voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn('Speech synthesis fallback failed:', e);
+  }
+};
+
+// Main Speak function: uses high-fidelity female audio stream with automatic fallback
 export const speakText = (text, slow = false) => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    console.warn('Speech synthesis not supported');
-    return;
+  if (typeof window === 'undefined' || !text) return;
+
+  const cleanText = text.replace(/[\n\r]+/g, ' ').trim();
+  if (!cleanText) return;
+
+  try {
+    if (!globalTTSAudio) {
+      globalTTSAudio = new Audio();
+      globalTTSAudio.setAttribute('playsinline', '');
+      globalTTSAudio.setAttribute('webkit-playsinline', '');
+    }
+
+    globalTTSAudio.pause();
+    globalTTSAudio.currentTime = 0;
+
+    // Google TTS audio stream delivers a natural, crystal-clear female voice on ANY Android APK/WebView
+    const encoded = encodeURIComponent(cleanText);
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&q=${encoded}`;
+
+    globalTTSAudio.src = audioUrl;
+    globalTTSAudio.playbackRate = slow ? 0.68 : 0.98;
+
+    const playPromise = globalTTSAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('Audio stream error, using device synthesis fallback:', err);
+        fallbackSpeechSynthesis(cleanText, slow);
+      });
+    }
+  } catch (err) {
+    console.warn('Audio error, using device synthesis fallback:', err);
+    fallbackSpeechSynthesis(cleanText, slow);
   }
-
-  window.speechSynthesis.cancel(); // Stop any pending speech
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-US';
-  utterance.rate = slow ? 0.62 : 0.95;
-  utterance.pitch = 1.0;
-
-  // Try to find a natural English voice
-  const voices = window.speechSynthesis.getVoices();
-  const enVoice = voices.find(v => (v.lang === 'en-US' || v.lang.startsWith('en')) && !v.name.includes('Google') === false) 
-               || voices.find(v => v.lang.startsWith('en'));
-  if (enVoice) {
-    utterance.voice = enVoice;
-  }
-
-  window.speechSynthesis.speak(utterance);
 };
 
 // Calculate speech similarity between target and spoken text
