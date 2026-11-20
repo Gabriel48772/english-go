@@ -1,0 +1,9 @@
+{
+  "appId": "com.gabriel48772.englishgo",
+  "appName": "EnglishGo",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

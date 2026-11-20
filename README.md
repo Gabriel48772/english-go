@@ -38,9 +38,20 @@ Una aplicación móvil interactiva, gamificada e inspirada en **Duolingo** y **O
 
 ---
 
-## 📱 Cómo abrirla en tu Teléfono Móvil
+## 📱 Descargar e Instalar en Teléfonos Móviles (Ejecutable .APK)
 
-La aplicación está lista como **Progressive Web App (PWA)**:
+EnglishGo! cuenta con su proyecto nativo Android generado con **Capacitor** y compilado automáticamente con **GitHub Actions**:
+
+### 📥 Descarga Directa del APK:
+1. En tu teléfono móvil, ve a la sección de **Releases** de tu repositorio:  
+   👉 **[https://github.com/Gabriel48772/english-go/releases](https://github.com/Gabriel48772/english-go/releases)**
+2. Descarga el archivo ejecutable **`EnglishGo.apk`**.
+3. Abre el archivo descargado en tu móvil y pulsa **Instalar**.
+4. ¡Listo! La app se instalará en tu teléfono como una aplicación nativa completa con icono, acceso a micrófono y sonido integrado.
+
+---
+
+## 🛠️ Compilación Local para Desarrolladores
 
 1. **En tu red Wi-Fi local:**
    Abre el navegador de tu teléfono móvil (Chrome o Safari) e ingresa a:
