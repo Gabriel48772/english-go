@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Check, ArrowRight, Volume2, Sparkles, Trophy, RotateCcw } from 'lucide-react';
+import { X, Heart, Check, ArrowRight, Volume2, Sparkles, Trophy, RotateCcw, Bookmark, Pause } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds, speakText } from '../utils/audio';
 import { AudioPlayerButton } from './AudioPlayerButton';
@@ -9,13 +9,15 @@ import { Mascot } from './Mascot';
 export const LessonScreen = ({
   lesson,
   unit,
+  initialIndex = 0,
   onFinish,
   onExit,
+  onProgressUpdate = () => {},
   hearts,
   setHearts,
   addXP
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [sentenceWords, setSentenceWords] = useState([]);
   const [availableWords, setAvailableWords] = useState([]);
@@ -30,10 +32,16 @@ export const LessonScreen = ({
   const [checkStatus, setCheckStatus] = useState('idle');
   const [correctAnswerText, setCorrectAnswerText] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
   const exercises = lesson.exercises || [];
   const currentEx = exercises[currentIndex];
   const progressPercent = Math.round(((currentIndex) / exercises.length) * 100);
+
+  // Notify parent on current index change to persist progress
+  useEffect(() => {
+    onProgressUpdate(currentIndex);
+  }, [currentIndex]);
 
   // Initialize exercise state
   useEffect(() => {
@@ -111,7 +119,6 @@ export const LessonScreen = ({
     sounds.playClick();
 
     if (currentEx.type === 'flashcard') {
-      // Flashcards are informational, automatically pass
       sounds.playCorrect();
       setCheckStatus('correct');
       return;
@@ -152,7 +159,6 @@ export const LessonScreen = ({
     if (currentIndex + 1 < exercises.length) {
       setCurrentIndex(prev => prev + 1);
     } else {
-      // Completed!
       sounds.playWin();
       confetti({
         particleCount: 100,
@@ -162,6 +168,13 @@ export const LessonScreen = ({
       addXP(lesson.xp || 20);
       setIsCompleted(true);
     }
+  };
+
+  // Exit dialog handlers
+  const handleConfirmExit = (save = true) => {
+    sounds.playClick();
+    setShowExitDialog(false);
+    onExit(save);
   };
 
   // If lesson completed, show victory celebration
@@ -207,14 +220,17 @@ export const LessonScreen = ({
   }
 
   return (
-    <div className="flex flex-col min-h-[620px] justify-between pb-4">
+    <div className="flex flex-col min-h-[620px] justify-between pb-4 relative">
       {/* Top Bar with progress and hearts */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between gap-3 mb-3">
           <button
-            onClick={onExit}
+            onClick={() => {
+              sounds.playClick();
+              setShowExitDialog(true);
+            }}
             className="p-2 text-slate-400 hover:text-slate-200 active:scale-95 transition-colors"
-            title="Salir al mapa"
+            title="Pausar o salir"
           >
             <X size={22} />
           </button>
@@ -234,8 +250,9 @@ export const LessonScreen = ({
           </div>
         </div>
 
-        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-          {unit.title} • {lesson.title}
+        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+          <span>{unit.title} • {lesson.title}</span>
+          <span className="text-emerald-400 font-mono">Pregunta {currentIndex + 1} de {exercises.length}</span>
         </div>
       </div>
 
@@ -563,6 +580,48 @@ export const LessonScreen = ({
           </div>
         )}
       </div>
+
+      {/* Exit & Resume Modal */}
+      {showExitDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-xs bg-slate-900 border border-slate-700 rounded-3xl p-5 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3">
+              <Pause size={26} />
+            </div>
+
+            <h3 className="text-lg font-black text-white mb-1">
+              ¿Pausar tu clase?
+            </h3>
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              Guardaremos tu avance exacto (Pregunta {currentIndex + 1} de {exercises.length}) para que retomes donde lo dejaste.
+            </p>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => handleConfirmExit(true)}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5"
+              >
+                <Bookmark size={15} />
+                <span>Guardar y Salir</span>
+              </button>
+
+              <button
+                onClick={() => handleConfirmExit(false)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-rose-400 font-semibold text-xs rounded-xl transition-all"
+              >
+                Reiniciar desde cero
+              </button>
+
+              <button
+                onClick={() => setShowExitDialog(false)}
+                className="w-full py-2 text-slate-400 hover:text-white font-medium text-xs"
+              >
+                Continuar aprendiendo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

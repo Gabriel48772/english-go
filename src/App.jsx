@@ -9,11 +9,13 @@ import { DictionaryScreen } from './components/DictionaryScreen';
 import { UpdateModal } from './components/UpdateModal';
 import { sounds } from './utils/audio';
 import { registerServiceWorker, checkForUpdates } from './services/updateService';
+import { UNITS } from './data/lessons';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('learn');
   const [currentLesson, setCurrentLesson] = useState(null);
   const [currentUnit, setCurrentUnit] = useState(null);
+  const [lessonInitialIndex, setLessonInitialIndex] = useState(0);
   const [isMobileFrame, setIsMobileFrame] = useState(true);
 
   // Update modal state
@@ -39,13 +41,32 @@ export default function App() {
     }
   });
 
-  // Save to localStorage
+  // Saved in-progress lesson session (so user can resume right where they left off!)
+  const [savedProgress, setSavedProgress] = useState(() => {
+    try {
+      const data = localStorage.getItem('english_go_active_session');
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Save core state to localStorage
   useEffect(() => {
     localStorage.setItem('english_go_xp', xp.toString());
     localStorage.setItem('english_go_streak', streak.toString());
     localStorage.setItem('english_go_hearts', hearts.toString());
     localStorage.setItem('english_go_completed', JSON.stringify(completedLessons));
   }, [xp, streak, hearts, completedLessons]);
+
+  // Save in-progress session to localStorage
+  useEffect(() => {
+    if (savedProgress) {
+      localStorage.setItem('english_go_active_session', JSON.stringify(savedProgress));
+    } else {
+      localStorage.removeItem('english_go_active_session');
+    }
+  }, [savedProgress]);
 
   // Register service worker and check for updates on startup
   useEffect(() => {
@@ -54,7 +75,6 @@ export default function App() {
       setShowUpdateModal(true);
     });
 
-    // Check remote version shortly after startup
     const timer = setTimeout(async () => {
       const res = await checkForUpdates();
       if (res.hasUpdate) {
@@ -70,21 +90,56 @@ export default function App() {
     setXp(prev => prev + amount);
   };
 
-  const handleStartLesson = (lesson, unit) => {
+  const handleStartLesson = (lesson, unit, startingIndex = 0) => {
     setCurrentLesson(lesson);
     setCurrentUnit(unit);
+    setLessonInitialIndex(startingIndex);
+  };
+
+  // Called when exercise index advances within LessonScreen
+  const handleProgressUpdate = (index) => {
+    if (!currentLesson || !currentUnit) return;
+    setSavedProgress({
+      lessonId: currentLesson.id,
+      unitId: currentUnit.id,
+      exerciseIndex: index,
+      totalExercises: currentLesson.exercises?.length || 1,
+      lessonTitle: currentLesson.title,
+      unitTitle: currentUnit.title,
+      timestamp: Date.now()
+    });
+  };
+
+  // Resume the saved in-progress lesson directly
+  const handleResumeSavedLesson = () => {
+    if (!savedProgress) return;
+    for (const unit of UNITS) {
+      const foundLesson = unit.lessons.find(l => l.id === savedProgress.lessonId);
+      if (foundLesson) {
+        handleStartLesson(foundLesson, unit, savedProgress.exerciseIndex || 0);
+        return;
+      }
+    }
+  };
+
+  const handleDiscardSavedProgress = () => {
+    setSavedProgress(null);
   };
 
   const handleFinishLesson = () => {
     if (currentLesson && !completedLessons.includes(currentLesson.id)) {
       setCompletedLessons(prev => [...prev, currentLesson.id]);
     }
+    setSavedProgress(null); // Clear active session when completed!
     setCurrentLesson(null);
     setCurrentUnit(null);
   };
 
-  const handleExitLesson = () => {
+  const handleExitLesson = (saveProgress = true) => {
     sounds.playClick();
+    if (!saveProgress) {
+      setSavedProgress(null);
+    }
     setCurrentLesson(null);
     setCurrentUnit(null);
   };
@@ -101,7 +156,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-0 md:p-6 text-slate-100">
-      {/* Container: If isMobileFrame is true on desktop, renders an elegant smartphone frame */}
+      {/* Smartphone frame container */}
       <div
         className={`w-full transition-all duration-300 relative flex flex-col bg-slate-900 overflow-hidden ${
           isMobileFrame
@@ -131,7 +186,7 @@ export default function App() {
           />
         )}
 
-        {/* Update Notification Banner (if update was found and modal was dismissed) */}
+        {/* Update Notification Banner */}
         {updateInfo?.hasUpdate && !showUpdateModal && !currentLesson && (
           <div
             onClick={handleOpenUpdatesManual}
@@ -163,8 +218,10 @@ export default function App() {
             <LessonScreen
               lesson={currentLesson}
               unit={currentUnit}
+              initialIndex={lessonInitialIndex}
               onFinish={handleFinishLesson}
               onExit={handleExitLesson}
+              onProgressUpdate={handleProgressUpdate}
               hearts={hearts}
               setHearts={setHearts}
               addXP={addXP}
@@ -175,6 +232,9 @@ export default function App() {
                 <LearnMap
                   onSelectLesson={handleStartLesson}
                   completedLessons={completedLessons}
+                  savedProgress={savedProgress}
+                  onResumeSavedLesson={handleResumeSavedLesson}
+                  onDiscardSavedProgress={handleDiscardSavedProgress}
                 />
               )}
 
