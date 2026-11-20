@@ -24,11 +24,11 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Configurar Java 17 (JDK)
+      - name: Configurar Java 21 (JDK)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v3
