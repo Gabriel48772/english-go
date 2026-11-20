@@ -6,6 +6,7 @@ import { LessonScreen } from './components/LessonScreen';
 import { ConversationPractice } from './components/ConversationPractice';
 import { SpeakingGym } from './components/SpeakingGym';
 import { DictionaryScreen } from './components/DictionaryScreen';
+import { ArcadeCenter } from './components/ArcadeCenter';
 import { UpdateModal } from './components/UpdateModal';
 import { sounds } from './utils/audio';
 import { registerServiceWorker, checkForUpdates } from './services/updateService';
@@ -236,6 +237,10 @@ export default function App() {
                   onResumeSavedLesson={handleResumeSavedLesson}
                   onDiscardSavedProgress={handleDiscardSavedProgress}
                 />
+              )}
+
+              {activeTab === 'arcade' && (
+                <ArcadeCenter addXP={addXP} />
               )}
 
               {activeTab === 'conversation' && (
